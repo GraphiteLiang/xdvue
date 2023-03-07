@@ -1,38 +1,43 @@
 <template>
-  <div id="app">
-    <el-container style="height: 500px; border: 1px solid #eee">
+  <div id="app1">
+    <el-header style="height: 10vh;">Header</el-header>
+    <el-container style="height: 90vh; border: 1px solid #eee">
       <el-aside width="400px">
-        <el-menu :default-openeds="['1', '3']" style="width: 400px;">
-          <el-menu-item v-for="item in threadItems"
-                        :key="item.index"
-                        class="ellipsis"
-                        :title="item.text"
-                        @click="handleMenuItemClick(item)">
-            <span>{{ item.text }}</span>
-          </el-menu-item>
-          <el-pagination
-              :pager-count="2"
-              @current-change="getForumPageData"
-              @next-click="getForumPageData"
-              layout="prev, pager, next"
-              :total="this.maxThreadCount">
-          </el-pagination>
-        </el-menu>
+        <div ref="forumPage">
+          <el-menu :default-openeds="['1', '3']"
+                   v-loading="this.loading"
+                   style="width: 380px;">
+            <el-menu-item v-for="item in threadItems"
+                          :key="item.index"
+                          class="ellipsis"
+                          :title="item.text"
+                          @click="handleMenuItemClick(item)">
+              <span>{{ item.text }}</span>
+            </el-menu-item>
+            <el-pagination
+                :pager-count="2"
+                @current-change="getForumPageData"
+                layout="prev, pager, next"
+                :total="this.maxThreadCount">
+            </el-pagination>
+          </el-menu>
+        </div>
       </el-aside>
-      <el-main>
-        <template v-for="(item, index) in replyItems">
-        <span :key="item.index" v-html="item.text"/>
-        <el-divider v-if="index !== replyItems.length - 1"
-                    :key="item.index"
-                    content-position="left">{{ item.rid }}</el-divider>
-        </template>
-        <el-pagination
-            ref="pagination"
-            @current-change="getThreadPageData"
-            @next-click="getThreadPageData"
-            layout="prev, pager, next"
-            :total="this.replyCount">
-        </el-pagination>
+      <el-main v-loading="this.mainLoading">
+        <div ref="mainDataPage">
+          <template v-for="(item, index) in replyItems">
+            <span :key="item.index" v-html="item.text"/>
+            <el-divider v-if="index !== replyItems.length - 1"
+                        :key="item.index"
+                        content-position="left">{{ item.rid }}</el-divider>
+          </template>
+          <el-pagination
+              @current-change="getThreadPageData"
+              layout="prev, pager, next"
+              :page-size="20"
+              :total="this.replyCount">
+          </el-pagination>
+        </div>
       </el-main>
     </el-container>
   </div>
@@ -43,6 +48,8 @@ import axios from "axios"
 export default {
   data() {
     return {
+      mainLoading: false,
+      loading: false,
       maxThreadCount: 0,
       threadItems: [
       ],
@@ -54,6 +61,7 @@ export default {
   },
   methods: {
     handleMenuItemClick(item) {
+      this.loading = true;
       this.selectedItem = item
       this.replyItems.splice(0)
 
@@ -84,11 +92,11 @@ export default {
             // 获取数据失败后的操作
             console.log(error)
             this.$message('获取串数据失败');
-          })
-
+          }).finally( () => this.loading = false)
     },
 
     getForumPageData(page) {
+      this.loading = true;
       axios.get('http://127.0.0.1:11451/api/showf?id=4&' + 'page=' + page)
           .then(response => {
             this.threadItems.splice(0)
@@ -107,15 +115,17 @@ export default {
                   }
               )
             }
+            this.$refs.forumPage.scrollIntoView();
           })
           .catch(error => {
             // 获取数据失败后的操作
             console.log(error)
             this.$message('获取串数据失败');
-          })
+          }).finally( () => this.loading = false)
     },
 
     getThreadPageData(page) {
+      this.mainLoading = true;
       axios.get('http://127.0.0.1:11451/api/thread?id=' + this.selectedItem.tid + '&page=' + page)
           .then(response => {
             this.replyItems.splice(0)
@@ -130,15 +140,17 @@ export default {
                   }
               )
             }
+            this.$refs.mainDataPage.scrollIntoView();
           })
           .catch(error => {
             // 获取数据失败后的操作
             console.log(error)
             this.$message('获取串数据失败');
-          })
+          }).finally( () => this.mainLoading = false)
     },
   },
   created() {
+    this.loading = true;
     axios.get('http://127.0.0.1:11451/api/showf?id=4&page=1')
         .then(response => {
           let forumThreads = response.data;
@@ -159,12 +171,16 @@ export default {
           console.log(error)
           this.$message('获取串数据失败');
         })
+    this.loading = false;
   }
 }
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+body {
+  margin: 0;
+}
 .el-header {
   background-color: #B3C0D1;
   color: #333;
